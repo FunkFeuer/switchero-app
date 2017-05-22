@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package switchero;
+
+service Switchero {
+  rpc PowerOn (PowerRequest) returns (Void) {}
+  rpc PowerOff (PowerRequest) returns (Void) {}
+  rpc PowerStatus (PowerRequest) returns (PowerStatusResponse) {}
+}
+
+message PowerRequest {
+  string locator = 1;
+}
+
+message PowerStatusResponse {
+  Error error = 10000;
+
+  enum State {
+    OFF = 0;
+    ON = 1;
+  }
+  State state = 1;
+
+  bool cap_measure = 9000;
+  float volts = 100;
+  float amps = 101;
+  float watts = 102;
+  float pf = 103;
+
+  bool cap_fault = 9001;
+  bool fault = 200;
+}
+
+message Void {
+  Error error = 10000;
+}
+
+enum Error {
+  NONE = 0;
+  NOT_FOUND = 1;
+}
