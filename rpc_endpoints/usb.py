@@ -16,7 +16,8 @@ import time
 import grpc
 import switchero_pb2
 import switchero_pb2_grpc
-from Adafruit_MCP230XX import Adafruit_MCP230XX
+import Adafruit_GPIO as GPIO
+import Adafruit_GPIO.MCP230xx as MCP
 
 
 CHIP_MAPPING = {}
@@ -26,11 +27,11 @@ for entry in sorted(OUTLET_MAPPING.items(), key = lambda x: x[1]["ctl"]): # Pins
   addr = cfg["addr"]
   chip = CHIP_MAPPING.get(addr)
   if chip is None:
-    chip = Adafruit_MCP230XX(busnum = addr[0], address = addr[1], num_gpios = 16)
+    chip = MCP.MCP23017(busnum = addr[0], address = addr[1])
     CHIP_MAPPING[addr] = chip
-  chip.config(cfg["ctl"], chip.OUTPUT)
-  chip.config(cfg["flag"], chip.INPUT)
-  chip.pullup(cfg["flag"], 1)
+  chip.setup(cfg["ctl"], GPIO.OUT)
+  chip.setup(cfg["flag"], GPIO.IN)
+  chip.pullup(cfg["flag"], True)
 
 
 STATE_MAPPING = { locator: "ON" for locator in OUTLET_MAPPING }
@@ -45,7 +46,7 @@ class Switchero(switchero_pb2_grpc.SwitcheroServicer):
       return switchero_pb2.Void(error = "NOT_FOUND")
 
     chip = CHIP_MAPPING[cfg["addr"]]
-    chip.output(cfg["ctl"], 0)
+    chip.output(cfg["ctl"], GPIO.LOW)
     STATE_MAPPING[request.locator] = "ON"
     return switchero_pb2.Void()
 
@@ -58,7 +59,7 @@ class Switchero(switchero_pb2_grpc.SwitcheroServicer):
       return switchero_pb2.Void(error = "NOT_FOUND")
 
     chip = CHIP_MAPPING[cfg["addr"]]
-    chip.output(cfg["ctl"], 1)
+    chip.output(cfg["ctl"], GPIO.HIGH)
     STATE_MAPPING[request.locator] = "OFF"
     return switchero_pb2.Void()
 
@@ -73,13 +74,13 @@ class Switchero(switchero_pb2_grpc.SwitcheroServicer):
     chip = CHIP_MAPPING[cfg["addr"]]
 
     state = STATE_MAPPING[request.locator]
-    fault = chip.input(cfg["flag"]) >> 3
+    fault = chip.input(cfg["flag"]) == GPIO.LOW
 
     return switchero_pb2.PowerStatusResponse(
       cap_measure = False,
       cap_fault = True,
       state = state,
-      fault = fault == 0
+      fault = fault
     )
 
 
